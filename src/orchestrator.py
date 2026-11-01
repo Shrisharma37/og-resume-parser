@@ -80,6 +80,8 @@ class ResumeParserOrchestrator:
             missing_profile_fields.append("full_name")
         if not profile.location:
             missing_profile_fields.append("location")
+        if not profile.phone:
+            missing_profile_fields.append("phone")
 
         # 7. Extract Experience, Projects & enrich Profile (Targeted Gemini Hybrid Call)
         exp_text = sections.get("experience", "")
@@ -116,6 +118,8 @@ class ResumeParserOrchestrator:
                     profile.full_name = ai_output.full_name
                 if not profile.location and ai_output.location:
                     profile.location = ai_output.location
+                if not profile.phone and ai_output.phone:
+                    profile.phone = ai_output.phone
 
                 experience = ai_output.experience
                 projects = ai_output.projects

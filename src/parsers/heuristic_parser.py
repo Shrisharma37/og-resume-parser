@@ -28,15 +28,54 @@ DATE_RANGE_REGEX = r'(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]
 GPA_REGEX = r'(?:GPA|CGPA|Grade)[:\s]*([0-9]+(?:\.[0-9]+)?(?:\s*/\s*[0-9]+(?:\.[0-9]+)?)?)'
 
 
+def extract_phone(header_text: str) -> Optional[str]:
+    """Strictly extract a valid phone number from the candidate's header section."""
+    if not header_text:
+        return None
+
+    # 1. Look for explicit phone label (e.g. Phone: +91 9876543210, Mobile: ...)
+    label_match = re.search(
+        r'(?:phone|mobile|cell|tel|contact|call)[:\s]+(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,5}\)?[\s.-]?\d{3,5}[\s.-]?\d{3,5}\b',
+        header_text,
+        re.I
+    )
+    if label_match:
+        num = re.sub(r'^(?:phone|mobile|cell|tel|contact|call)[:\s]+', '', label_match.group(0), flags=re.I).strip()
+        digits = re.sub(r'\D', '', num)
+        if 7 <= len(digits) <= 15:
+            return num
+
+    # 2. Strict phone regex with boundary checks
+    phone_patterns = [
+        r'(?<!\w)(?:\+91[\s.-]?)?[6-9]\d{4}[\s.-]?\d{5}(?!\w)',  # Indian 10-digit mobile
+        r'(?<!\w)(?:\+1[\s.-]?)?\(?[2-9]\d{2}\)?[\s.-]?\d{3}[\s.-]?\d{4}(?!\w)',  # US format
+        r'(?<!\w)\+\d{1,3}[\s.-]?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{3,5}(?!\w)'   # International format
+    ]
+    
+    for pat in phone_patterns:
+        match = re.search(pat, header_text)
+        if match:
+            candidate = match.group(0).strip()
+            digits = re.sub(r'\D', '', candidate)
+            # Ensure not a year range like 2020-2024
+            if 10 <= len(digits) <= 15:
+                if not (len(digits) == 8 and candidate.startswith(('19', '20'))):
+                    return candidate
+
+    return None
+
+
 def extract_profile(full_text: str, profile_section_text: str = "") -> Profile:
     """Extract candidate profile using fast deterministic regex and heuristics."""
-    search_scope = (profile_section_text + "\n" + full_text) if profile_section_text else full_text
+    # Contact info (email, phone, name) must be restricted to the header block
+    header_scope = profile_section_text if profile_section_text.strip() else "\n".join(full_text.splitlines()[:15])
+    search_scope = header_scope + "\n" + full_text
     
-    email_match = re.search(EMAIL_REGEX, search_scope)
-    phone_match = re.search(PHONE_REGEX, search_scope)
-    
+    email_match = re.search(EMAIL_REGEX, header_scope) or re.search(EMAIL_REGEX, full_text)
     email = email_match.group(0) if email_match else None
-    phone = phone_match.group(0).strip() if phone_match else None
+    
+    # Phone number is strictly extracted from header scope ONLY (never from body/footer)
+    phone = extract_phone(header_scope)
     
     # Flexible LinkedIn detection (full URL, shorthand, or label format)
     linkedin_url = None

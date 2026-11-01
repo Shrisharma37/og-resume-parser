@@ -18,6 +18,7 @@ class HybridAIOutput(BaseModel):
     summary: Optional[str] = None
     full_name: Optional[str] = None
     location: Optional[str] = None
+    phone: Optional[str] = None
     experience: List[Experience] = Field(default_factory=list)
     projects: List[Project] = Field(default_factory=list)
 
@@ -62,6 +63,7 @@ class ResumeLLMParser:
         - summary: Professional bio, career objective, or summary paragraph
         - full_name: Candidate's full name
         - location: Candidate's location (City, State, Country)
+        - phone: Candidate's phone number if and ONLY if explicitly written in the header. If no phone number is provided, return null. Do NOT extract roll numbers, dates, or other numbers as a phone number.
         - projects: list of {{ title, role, description, technologies: [] }}
         - experience: list of {{ company, role, experience_type, start_date, end_date, description, technologies: [] }}
 
@@ -75,17 +77,25 @@ class ResumeLLMParser:
         \"\"\"{experience_text}\"\"\"
         """
 
-        response = self.client.models.generate_content(
-            model=self.model_name,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=HybridAIOutput,
-                temperature=0.1
-            ),
-        )
-
-        return HybridAIOutput.model_validate_json(response.text)
+        import time
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=HybridAIOutput,
+                        temperature=0.1
+                    ),
+                )
+                return HybridAIOutput.model_validate_json(response.text)
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    time.sleep(1.5)
+                else:
+                    raise e
 
     def parse_experience_and_projects(
         self, experience_text: str, projects_text: str

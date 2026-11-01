@@ -19,6 +19,20 @@ def extract_docx_data(file_bytes: bytes, filename: str) -> dict:
             if row_data:
                 full_text.append(" | ".join(row_data))
 
+    # Extract hyperlinks from document relationships (e.g. hyperlinked icons/words)
+    hyperlinks = set()
+    try:
+        for rel in doc.part.rels.values():
+            if "hyperlink" in getattr(rel, "reltype", ""):
+                target = getattr(rel, "target_ref", None)
+                if target and target.startswith(("http://", "https://", "mailto:")):
+                    hyperlinks.add(target)
+    except Exception:
+        pass
+
+    if hyperlinks:
+        full_text.append("\nEmbedded Links:\n" + "\n".join(hyperlinks))
+
     extracted_text = "\n".join(full_text)
     
     return {

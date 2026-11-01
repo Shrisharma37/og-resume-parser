@@ -34,16 +34,13 @@ with st.sidebar:
             st.session_state.pop("orchestrator", None)
 
     if api_key:
-        st.success("API Key detected")
+        st.success("API Key detected (Hybrid Mode active)")
     else:
-        st.warning("⚠️ API Key missing. Set GEMINI_API_KEY in environment variables or enter it above.")
+        st.warning("⚠️ API Key missing. Enter your Gemini API key above for full AI extraction.")
 
-# Initialize orchestrator in session state when API key is available
-if api_key and "orchestrator" not in st.session_state:
-    try:
-        st.session_state.orchestrator = ResumeParserOrchestrator()
-    except Exception as e:
-        st.error(f"Failed to initialize parser: {e}")
+# Initialize orchestrator in session state
+if "orchestrator" not in st.session_state:
+    st.session_state.orchestrator = ResumeParserOrchestrator()
 
 uploaded_file = st.file_uploader(
     "Choose a resume file",
@@ -62,17 +59,21 @@ if uploaded_file is not None:
         parse_button = st.button("🚀 Parse Resume", type="primary", use_container_width=True)
 
     if parse_button:
-        if "orchestrator" not in st.session_state:
-            st.error("⚠️ Gemini API Key is missing. Please enter your API key in the sidebar to proceed.")
-        else:
-            with st.spinner("Reading document and generating structured sections..."):
-                try:
-                    file_bytes = uploaded_file.getvalue()
-                    result = st.session_state.orchestrator.process_file(file_bytes, uploaded_file.name)
-                    st.session_state["parsed_result"] = result.model_dump()
-                    st.success("Resume parsed successfully!")
-                except Exception as e:
-                    st.error(f"Failed to parse resume: {str(e)}")
+        import time
+        with st.spinner("Processing document through hybrid pipeline..."):
+            try:
+                start_time = time.time()
+                file_bytes = uploaded_file.getvalue()
+                result = st.session_state.orchestrator.process_file(
+                    file_bytes=file_bytes,
+                    filename=uploaded_file.name,
+                    use_ai=True
+                )
+                elapsed = time.time() - start_time
+                st.session_state["parsed_result"] = result.model_dump()
+                st.success(f"Resume parsed successfully in **{elapsed:.2f}s**!")
+            except Exception as e:
+                st.error(f"Failed to parse resume: {str(e)}")
 
     if "parsed_result" in st.session_state:
         data = st.session_state["parsed_result"]
@@ -87,15 +88,24 @@ if uploaded_file is not None:
             profile = data.get("profile", {})
             st.markdown(f"### {profile.get('full_name') or 'Candidate Profile'}")
             
-            p_cols = st.columns(4)
+            p_cols = st.columns(5)
             p_cols[0].markdown(f"**Email:** {profile.get('email') or '—'}")
             p_cols[1].markdown(f"**Phone:** {profile.get('phone') or '—'}")
             p_cols[2].markdown(f"**Location:** {profile.get('location') or '—'}")
             
-            # Format LinkedIn link cleanly to avoid nested f-string backslash syntax errors
             linkedin_url = profile.get("linkedin_url")
-            linkedin_display = f"[Profile]({linkedin_url})" if linkedin_url else "—"
+            linkedin_display = f"[LinkedIn]({linkedin_url})" if linkedin_url else "—"
             p_cols[3].markdown(f"**LinkedIn:** {linkedin_display}")
+
+            github_url = profile.get("github_url")
+            github_display = f"[GitHub]({github_url})" if github_url else "—"
+            p_cols[4].markdown(f"**GitHub:** {github_display}")
+
+            if profile.get("portfolio_url"):
+                st.markdown(f"**Portfolio / Website:** [{profile.get('portfolio_url')}]({profile.get('portfolio_url')})")
+
+            if profile.get("summary"):
+                st.info(f"**Summary:** {profile.get('summary')}")
             
             # Technical Skills
             st.markdown("#### 🛠️ Technical Skills")

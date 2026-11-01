@@ -26,12 +26,19 @@ st.caption("Upload any PDF or DOCX resume to extract structured data into standa
 with st.sidebar:
     st.header("⚙️ Configuration")
     api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-    if api_key:
-        st.success("API Key detected")
-    else:
-        st.error("API Key missing in .env")
+    if not api_key:
+        user_key = st.text_input("Enter Gemini API Key", type="password", help="Enter your Gemini API key if not configured in environment variables.")
+        if user_key:
+            os.environ["GEMINI_API_KEY"] = user_key
+            api_key = user_key
+            st.session_state.pop("orchestrator", None)
 
-# Initialize orchestrator in session state so it doesn't reload on every interaction
+    if api_key:
+        st.success("API Key detected (Hybrid Mode active)")
+    else:
+        st.warning("⚠️ API Key missing. Enter your Gemini API key above for full AI extraction.")
+
+# Initialize orchestrator in session state
 if "orchestrator" not in st.session_state:
     st.session_state.orchestrator = ResumeParserOrchestrator()
 
@@ -52,12 +59,19 @@ if uploaded_file is not None:
         parse_button = st.button("🚀 Parse Resume", type="primary", use_container_width=True)
 
     if parse_button:
-        with st.spinner("Reading document and generating structured sections..."):
+        import time
+        with st.spinner("Processing document through hybrid pipeline..."):
             try:
+                start_time = time.time()
                 file_bytes = uploaded_file.getvalue()
-                result = st.session_state.orchestrator.process_file(file_bytes, uploaded_file.name)
+                result = st.session_state.orchestrator.process_file(
+                    file_bytes=file_bytes,
+                    filename=uploaded_file.name,
+                    use_ai=True
+                )
+                elapsed = time.time() - start_time
                 st.session_state["parsed_result"] = result.model_dump()
-                st.success("Resume parsed successfully!")
+                st.success(f"Resume parsed successfully in **{elapsed:.2f}s**!")
             except Exception as e:
                 st.error(f"Failed to parse resume: {str(e)}")
 
@@ -74,15 +88,24 @@ if uploaded_file is not None:
             profile = data.get("profile", {})
             st.markdown(f"### {profile.get('full_name') or 'Candidate Profile'}")
             
-            p_cols = st.columns(4)
+            p_cols = st.columns(5)
             p_cols[0].markdown(f"**Email:** {profile.get('email') or '—'}")
             p_cols[1].markdown(f"**Phone:** {profile.get('phone') or '—'}")
             p_cols[2].markdown(f"**Location:** {profile.get('location') or '—'}")
             
-            # Format LinkedIn link cleanly to avoid nested f-string backslash syntax errors
             linkedin_url = profile.get("linkedin_url")
-            linkedin_display = f"[Profile]({linkedin_url})" if linkedin_url else "—"
+            linkedin_display = f"[LinkedIn]({linkedin_url})" if linkedin_url else "—"
             p_cols[3].markdown(f"**LinkedIn:** {linkedin_display}")
+
+            github_url = profile.get("github_url")
+            github_display = f"[GitHub]({github_url})" if github_url else "—"
+            p_cols[4].markdown(f"**GitHub:** {github_display}")
+
+            if profile.get("portfolio_url"):
+                st.markdown(f"**Portfolio / Website:** [{profile.get('portfolio_url')}]({profile.get('portfolio_url')})")
+
+            if profile.get("summary"):
+                st.info(f"**Summary:** {profile.get('summary')}")
             
             # Technical Skills
             st.markdown("#### 🛠️ Technical Skills")

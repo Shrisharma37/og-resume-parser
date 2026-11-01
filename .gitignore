@@ -1,0 +1,38 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Secrets & Local Config
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Generated test / sample / output files
+parsed_result.json
+test_*.docx
+test_*.pdf
+sample_*.txt
+build/
+dist/
+*.spec
+
+# Local OS & logs
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

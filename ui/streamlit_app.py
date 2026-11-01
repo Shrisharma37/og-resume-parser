@@ -26,14 +26,24 @@ st.caption("Upload any PDF or DOCX resume to extract structured data into standa
 with st.sidebar:
     st.header("⚙️ Configuration")
     api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        user_key = st.text_input("Enter Gemini API Key", type="password", help="Enter your Gemini API key if not configured in environment variables.")
+        if user_key:
+            os.environ["GEMINI_API_KEY"] = user_key
+            api_key = user_key
+            st.session_state.pop("orchestrator", None)
+
     if api_key:
         st.success("API Key detected")
     else:
-        st.error("API Key missing in .env")
+        st.warning("⚠️ API Key missing. Set GEMINI_API_KEY in environment variables or enter it above.")
 
-# Initialize orchestrator in session state so it doesn't reload on every interaction
-if "orchestrator" not in st.session_state:
-    st.session_state.orchestrator = ResumeParserOrchestrator()
+# Initialize orchestrator in session state when API key is available
+if api_key and "orchestrator" not in st.session_state:
+    try:
+        st.session_state.orchestrator = ResumeParserOrchestrator()
+    except Exception as e:
+        st.error(f"Failed to initialize parser: {e}")
 
 uploaded_file = st.file_uploader(
     "Choose a resume file",
@@ -52,14 +62,17 @@ if uploaded_file is not None:
         parse_button = st.button("🚀 Parse Resume", type="primary", use_container_width=True)
 
     if parse_button:
-        with st.spinner("Reading document and generating structured sections..."):
-            try:
-                file_bytes = uploaded_file.getvalue()
-                result = st.session_state.orchestrator.process_file(file_bytes, uploaded_file.name)
-                st.session_state["parsed_result"] = result.model_dump()
-                st.success("Resume parsed successfully!")
-            except Exception as e:
-                st.error(f"Failed to parse resume: {str(e)}")
+        if "orchestrator" not in st.session_state:
+            st.error("⚠️ Gemini API Key is missing. Please enter your API key in the sidebar to proceed.")
+        else:
+            with st.spinner("Reading document and generating structured sections..."):
+                try:
+                    file_bytes = uploaded_file.getvalue()
+                    result = st.session_state.orchestrator.process_file(file_bytes, uploaded_file.name)
+                    st.session_state["parsed_result"] = result.model_dump()
+                    st.success("Resume parsed successfully!")
+                except Exception as e:
+                    st.error(f"Failed to parse resume: {str(e)}")
 
     if "parsed_result" in st.session_state:
         data = st.session_state["parsed_result"]

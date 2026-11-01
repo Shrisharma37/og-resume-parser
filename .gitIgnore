@@ -29,3 +29,7 @@ dist/
 *.tmp
 .DS_Store
 Thumbs.db
+
+src/__pycache__/
+src/extractors/__pycache__/
+src/parsers/__pycache__/

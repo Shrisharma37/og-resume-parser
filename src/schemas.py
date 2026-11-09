@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import List, Optional
-from pydantic import BaseModel, Field, HttpUrl
+from typing import Any, List, Optional
+from pydantic import BaseModel, Field, HttpUrl, model_validator
 
 
 class Profile(BaseModel):
@@ -25,19 +25,79 @@ class TechnicalSkills(BaseModel):
     technologies: List[str] = Field(default_factory=list)
 
 class Project(BaseModel):
-    title: str
+    title: str = "Untitled Project"
+    name: Optional[str] = None
     role: Optional[str] = None
     description: Optional[str] = None
     technologies: List[str] = Field(default_factory=list)
+    link: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_input(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "title" not in data and "name" in data:
+                data["title"] = data.get("name") or "Untitled Project"
+            elif "title" in data and not data["title"] and data.get("name"):
+                data["title"] = data["name"]
+            if isinstance(data.get("description"), list):
+                data["description"] = "\n".join(data["description"])
+            return data
+        elif hasattr(data, "model_dump") or hasattr(data, "__dict__"):
+            dump = data.model_dump() if hasattr(data, "model_dump") else getattr(data, "__dict__", {})
+            title = dump.get("title") or dump.get("name") or "Untitled Project"
+            desc = dump.get("description")
+            if not desc and dump.get("highlights"):
+                desc = "\n".join(dump["highlights"])
+            elif isinstance(desc, list):
+                desc = "\n".join(desc)
+            return {
+                "title": title,
+                "name": dump.get("name") or title,
+                "role": dump.get("role"),
+                "description": desc,
+                "technologies": dump.get("technologies") or [],
+                "link": dump.get("link"),
+            }
+        return data
 
 class Experience(BaseModel):
-    company: str
+    company: str = "Unknown Company"
     role: Optional[str] = None
     experience_type: Optional[str] = "full_time"  # internship, volunteer, other, etc.
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     description: Optional[str] = None
     technologies: List[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_input(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "role" not in data and "title" in data:
+                data["role"] = data.get("title")
+            if not data.get("company"):
+                data["company"] = "Unknown Company"
+            if isinstance(data.get("description"), list):
+                data["description"] = "\n".join(data["description"])
+            return data
+        elif hasattr(data, "model_dump") or hasattr(data, "__dict__"):
+            dump = data.model_dump() if hasattr(data, "model_dump") else getattr(data, "__dict__", {})
+            desc = dump.get("description")
+            if not desc and dump.get("highlights"):
+                desc = "\n".join(dump["highlights"])
+            elif isinstance(desc, list):
+                desc = "\n".join(desc)
+            return {
+                "company": dump.get("company") or "Unknown Company",
+                "role": dump.get("role") or dump.get("title"),
+                "experience_type": dump.get("experience_type", "full_time"),
+                "start_date": dump.get("start_date"),
+                "end_date": dump.get("end_date"),
+                "description": desc,
+                "technologies": dump.get("technologies") or [],
+            }
+        return data
 
 class Metadata(BaseModel):
     parser_version: str = "1.0"

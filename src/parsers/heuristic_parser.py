@@ -1,6 +1,7 @@
 import re
 from typing import Dict, Optional, List
 from src.schemas import Profile, EducationItem, Project, Experience, TechnicalSkills
+from src.parsers.education_parser import parse_education_section
 
 EMAIL_REGEX = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
 PHONE_REGEX = r'(?:\+?\d{1,3}[-.\s]?)?\(?\d{3,5}\)?[-.\s]?\d{3,5}[-.\s]?\d{3,5}'
@@ -199,59 +200,8 @@ def extract_skills(skills_text: str) -> List[str]:
 
 
 def extract_education(education_text: str) -> List[EducationItem]:
-    """Extract education items using heuristic degree, date, and institution detection."""
-    if not education_text:
-        return []
-
-    items: List[EducationItem] = []
-    blocks = [b.strip() for b in re.split(r'\n{2,}', education_text) if b.strip()]
-    if not blocks:
-        blocks = [education_text]
-
-    for block in blocks:
-        lines = [line.strip() for line in block.splitlines() if line.strip()]
-        if not lines:
-            continue
-            
-        institution = lines[0]
-        degree = None
-        start_date = None
-        end_date = None
-        grade = None
-        
-        # Look for degree pattern
-        combined_text = " ".join(lines)
-        for deg_pattern in DEGREE_PATTERNS:
-            deg_match = re.search(deg_pattern, combined_text, re.IGNORECASE)
-            if deg_match:
-                degree = deg_match.group(0).strip()
-                break
-
-        # Look for dates
-        date_match = re.search(DATE_RANGE_REGEX, combined_text)
-        if date_match:
-            parts = re.split(r'[-–—to]+', date_match.group(0))
-            if len(parts) == 2:
-                start_date = parts[0].strip()
-                end_date = parts[1].strip()
-            elif len(parts) == 1:
-                end_date = parts[0].strip()
-
-        # Look for GPA
-        gpa_match = re.search(GPA_REGEX, combined_text, re.IGNORECASE)
-        if gpa_match:
-            grade = gpa_match.group(1).strip()
-
-        items.append(EducationItem(
-            institution=institution,
-            degree=degree,
-            field_of_study=None,
-            start_date=start_date,
-            end_date=end_date,
-            grade_or_gpa=grade
-        ))
-
-    return items
+    """Extract education items using the dedicated EducationParser."""
+    return parse_education_section(education_text)
 
 
 def extract_list_items(section_text: str) -> List[str]:

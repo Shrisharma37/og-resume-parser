@@ -144,7 +144,8 @@ class ResumeParserOrchestrator:
         profile = extract_profile(raw_text, header_text)
 
         skills_text = sections.get("technical_skills", "")
-        skills_list = extract_skills(skills_text)
+        skills_map = extract_skills(skills_text)
+        skills_list = sorted({skill for bucket in skills_map.values() for skill in bucket})
         technical_skills = TechnicalSkills(technologies=skills_list)
 
         education_text = sections.get("education", "")

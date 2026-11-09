@@ -154,3 +154,8 @@ def parse_education_section(education_text: str) -> List[EducationItem]:
             )
 
     return items
+
+
+def parse_education(education_text: str) -> List[EducationItem]:
+    """Backward-compatible wrapper for heuristic parser consumers."""
+    return parse_education_section(education_text)

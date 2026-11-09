@@ -43,7 +43,7 @@ def extract_list_items(text: str) -> List[str]:
         return []
     items = []
     for line in text.splitlines():
-        clean = re.sub(r"^[\-•*\d\.)\s]+", "", line).strip()
+        clean = re.sub(r"^([•\-\*▪\u2022\u2013\u2014]|\(cid:\d+\)|[\d\.)\s])+", "", line).strip()
         if clean:
             items.append(clean)
     return items
@@ -69,7 +69,23 @@ def extract_experience_fallback(text: str) -> List[Experience]:
 
 def extract_projects_fallback(text: str) -> List[Project]:
     """Fallback project extraction using the deterministic project parser."""
-    return _parse_projects(text or "")
+    records = _parse_projects(text or "")
+    parsed: List[Project] = []
+    for rec in records:
+        desc = rec.description
+        if not desc and rec.highlights:
+            desc = "\n".join(rec.highlights)
+        parsed.append(
+            Project(
+                title=rec.name or "Untitled Project",
+                name=rec.name,
+                role=None,
+                description=desc,
+                technologies=rec.technologies or [],
+                link=rec.link,
+            )
+        )
+    return parsed
 
 
 def parse_canonical_sections(sections: Dict[str, str], raw_text: str = "") -> Dict[str, Any]:

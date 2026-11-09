@@ -17,67 +17,81 @@ from src.database import MongoDBClient, upload_resume_data
 st.set_page_config(
     page_title="AI Resume Parser & MongoDB Uploader",
     page_icon="📄",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed",
+    menu_items={
+        'Get Help': None,
+        'Report a bug': None,
+        'About': None
+    }
 )
 
-st.title("📄 Smart AI Resume Parser & MongoDB Storage")
-st.caption("Upload PDF or DOCX resumes to extract structured data and store them in MongoDB conforming to standard schemas.")
+# Hide Streamlit header (Deploy button, 3-dots menu), sidebar, and footer
+st.markdown(
+    """
+    <style>
+        /* Hide Deploy button */
+        .stAppDeployButton,
+        [data-testid="stAppDeployButton"] {
+            display: none !important;
+        }
 
-# Initialize MongoDB client in session state
-if "mongo_client" not in st.session_state:
-    st.session_state.mongo_client = MongoDBClient()
+        /* Hide 3-dots menu and header toolbar */
+        #MainMenu {
+            visibility: hidden !important;
+            display: none !important;
+        }
+        header[data-testid="stHeader"] {
+            visibility: hidden !important;
+            height: 0% !important;
+        }
+        [data-testid="stToolbar"] {
+            visibility: hidden !important;
+            display: none !important;
+        }
+        [data-testid="stDecoration"] {
+            display: none !important;
+        }
+        [data-testid="stStatusWidget"] {
+            visibility: hidden !important;
+            display: none !important;
+        }
 
-# Check MongoDB connectivity
-mongo_connected = False
-try:
-    mongo_connected = st.session_state.mongo_client.ping()
-except Exception:
-    mongo_connected = False
+        /* Hide sidebar and sidebar collapse control */
+        section[data-testid="stSidebar"],
+        [data-testid="stSidebar"],
+        [data-testid="stSidebarCollapsedControl"] {
+            display: none !important;
+        }
 
-# Sidebar status & Configuration
-with st.sidebar:
-    st.header("⚙️ Configuration")
-    
-    # Gemini API Key
-    st.subheader("🤖 AI Extractor")
-    api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        user_key = st.text_input(
-            "Enter Gemini API Key",
-            type="password",
-            help="Enter your Gemini API key if not configured in environment variables."
-        )
+        /* Hide footer */
+        footer {
+            visibility: hidden !important;
+            display: none !important;
+        }
+
+        /* Adjust top padding since header is hidden */
+        .block-container {
+            padding-top: 2rem !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+st.title("📄 Smart AI Resume Parser")
+st.caption("Upload any PDF or DOCX resume to extract structured data into standard JSON format.")
+
+# API Key check (fallback input in expander if not found in environment)
+api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+if not api_key:
+    with st.expander("⚙️ Gemini API Configuration", expanded=True):
+        user_key = st.text_input("Enter Gemini API Key", type="password", help="Enter your Gemini API key if not configured in environment variables.")
         if user_key:
             os.environ["GEMINI_API_KEY"] = user_key
             api_key = user_key
             st.session_state.pop("orchestrator", None)
-
-    if api_key:
-        st.success("API Key detected (Hybrid Mode active)")
-    else:
-        st.info("ℹ️ Local Heuristics active (Offline Mode)")
-
-    st.divider()
-
-    # MongoDB Status
-    st.subheader("🍃 MongoDB Storage")
-    if mongo_connected:
-        st.success(f"Connected to `{st.session_state.mongo_client.db_name}`")
-        st.caption(f"Collection: `{st.session_state.mongo_client.collection_name}`")
-        try:
-            total_docs = st.session_state.mongo_client.count_resumes()
-            st.metric(label="Total Saved Resumes", value=total_docs)
-        except Exception:
-            pass
-    else:
-        st.error("MongoDB not connected. Check MONGODB_URI in `.env`.")
-
-    auto_upload = st.checkbox(
-        "Auto-upload to MongoDB upon parsing",
-        value=True,
-        disabled=not mongo_connected,
-        help="Automatically validates schema and saves parsed resumes to MongoDB"
-    )
+            st.rerun()
 
 # Initialize orchestrator in session state
 if "orchestrator" not in st.session_state:
@@ -153,62 +167,7 @@ with nav_tab1:
             st.divider()
             st.subheader("📋 Parsed Sections")
 
-            tab_preview, tab_json = st.tabs(["Structured View", "Raw JSON"])
-
-            with tab_preview:
-                # Candidate Profile Summary
-                profile = data.get("profile", {})
-                st.markdown(f"### {profile.get('full_name') or 'Candidate Profile'}")
-                
-                p_cols = st.columns(5)
-                p_cols[0].markdown(f"**Email:** {profile.get('email') or '—'}")
-                p_cols[1].markdown(f"**Phone:** {profile.get('phone') or '—'}")
-                p_cols[2].markdown(f"**Location:** {profile.get('location') or '—'}")
-                
-                linkedin_url = profile.get("linkedin_url")
-                linkedin_display = f"[LinkedIn]({linkedin_url})" if linkedin_url else "—"
-                p_cols[3].markdown(f"**LinkedIn:** {linkedin_display}")
-
-                github_url = profile.get("github_url")
-                github_display = f"[GitHub]({github_url})" if github_url else "—"
-                p_cols[4].markdown(f"**GitHub:** {github_display}")
-
-                if profile.get("portfolio_url"):
-                    st.markdown(f"**Portfolio / Website:** [{profile.get('portfolio_url')}]({profile.get('portfolio_url')})")
-
-                if profile.get("summary"):
-                    st.info(f"**Summary:** {profile.get('summary')}")
-                
-                # Technical Skills
-                st.markdown("#### 🛠️ Technical Skills")
-                skills = data.get("technical_skills", {}).get("technologies", [])
-                if skills:
-                    st.write(", ".join([f"`{skill}`" for skill in skills]))
-                else:
-                    st.caption("No technical skills detected.")
-
-                # Projects
-                st.markdown("#### 📂 Projects")
-                projects = data.get("projects", [])
-                if projects:
-                    for proj in projects:
-                        with st.expander(f"**{proj.get('title')}** ({proj.get('role') or 'Developer'})"):
-                            st.write(proj.get("description") or "No description provided.")
-                            if proj.get("technologies"):
-                                st.caption(f"Tech: {', '.join(proj.get('technologies'))}")
-                else:
-                    st.caption("No projects detected.")
-
-                # Experience
-                st.markdown("#### 💼 Experience")
-                experiences = data.get("experience", [])
-                if experiences:
-                    for exp in experiences:
-                        with st.expander(f"**{exp.get('role')}** at {exp.get('company')}"):
-                            st.caption(f"Dates: {exp.get('start_date') or 'N/A'} - {exp.get('end_date') or 'N/A'} ({exp.get('experience_type')})")
-                            st.write(exp.get("description") or "")
-                else:
-                    st.caption("No experience records detected.")
+        tab_json, = st.tabs(["Raw JSON"])
 
             with tab_json:
                 json_str = json.dumps(data, indent=2)

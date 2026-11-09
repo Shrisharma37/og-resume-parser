@@ -19,7 +19,7 @@ ORG_INDICATORS = {
     "services", "studio", "group", "holdings", "co", "company"
 }
 
-BULLET_RE = re.compile(r"^\s*([•\-\*▪\u2022\u2013\u2014]|\d+[\.\)])\s*")
+BULLET_RE = re.compile(r"^\s*([•\-\*▪\u2022\u2013\u2014]|\(cid:\d+\)|\d+[\.\)])\s*")
 
 
 class WorkExperience(BaseModel):

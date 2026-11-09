@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from src.parsers.date_parser import extract_date_range
 
-BULLET_RE = re.compile(r"^\s*([•\-\*▪\u2022\u2013\u2014]|\d+[\.\)])\s*")
+BULLET_RE = re.compile(r"^\s*([•\-\*▪\u2022\u2013\u2014]|\(cid:\d+\)|\d+[\.\)])\s*")
 TECH_DELIM_RE = re.compile(r"(?:tech(?:nologies)?|tools|stack|built with)[\s:]+(.*)", re.IGNORECASE)
 
 

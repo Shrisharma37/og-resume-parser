@@ -177,9 +177,14 @@ Create a `.env` file in the project root:
 
 ```env
 GEMINI_API_KEY=your_actual_gemini_api_key_here
+
+# MongoDB Configuration
+MONGODB_URI=mongodb+srv://<db_username>:<db_password>@parsercluster.pbr6nkx.mongodb.net/?retryWrites=true&w=majority
+MONGODB_DB_NAME=resume_parser_db
+MONGODB_COLLECTION_NAME=resumes
 ```
 
-*(Note: If no API key is provided, you can also enter it dynamically in the Streamlit sidebar, or run in offline heuristic mode).*
+*(Note: If no Gemini API key is provided, the parser runs in offline heuristic mode).*
 
 ---
 
@@ -191,11 +196,19 @@ streamlit run ui/streamlit_app.py
 ```
 Open `http://localhost:8501` in your browser. Drag and drop any `.pdf` or `.docx` resume to inspect structured sections and download the JSON.
 
-### Option 2: Run CLI Backend Verification
+### Option 2: Run CLI Backend Verification & MongoDB Upload
 ```powershell
+# Parse resume and print formatted JSON
 python test_backend.py "path\to\resume.pdf"
+
+# Parse resume and upload directly to MongoDB
+python test_backend.py "path\to\resume.pdf" --upload
+
+# Or use the MongoDB utility tool
+python upload_to_mongodb.py --status
+python upload_to_mongodb.py --list
+python upload_to_mongodb.py "path\to\resume.pdf"
 ```
-Directly prints the formatted JSON to stdout and saves `parsed_result.json` in the root folder.
 
 ---
 

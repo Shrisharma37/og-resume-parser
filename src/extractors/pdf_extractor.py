@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import io
 import logging
+import re
 from typing import Any, Dict, List, Set
 
 try:
@@ -46,6 +47,7 @@ def _extract_with_pymupdf(file_bytes: bytes) -> Dict[str, Any]:
             # sort=True handles multi-column layout detection natively
             page_text = page.get_text("text", sort=True).strip()
             if page_text:
+                page_text = re.sub(r"\(cid:\d+\)", "•", page_text)
                 extracted_pages.append(page_text)
 
     return {
@@ -75,7 +77,8 @@ def _extract_with_pdfplumber_fallback(file_bytes: bytes) -> Dict[str, Any]:
             # layout=True preserves visual positioning/columns in pdfplumber
             text = page.extract_text(layout=True)
             if text and text.strip():
-                extracted_pages.append(text.strip())
+                text = re.sub(r"\(cid:\d+\)", "•", text.strip())
+                extracted_pages.append(text)
 
             for link in getattr(page, "hyperlinks", []) or []:
                 uri = link.get("uri")

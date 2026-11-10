@@ -97,6 +97,15 @@ if not api_key:
 if "orchestrator" not in st.session_state:
     st.session_state.orchestrator = ResumeParserOrchestrator()
 
+# Initialize MongoDB connection
+if "mongo_client" not in st.session_state:
+    st.session_state.mongo_client = MongoDBClient()
+
+mongo_connected = st.session_state.mongo_client.ping()
+
+# Automatic upload is disabled by default
+auto_upload = False
+
 # Main tabs: Parser vs Database Explorer
 nav_tab1, nav_tab2 = st.tabs(["🚀 Parse & Upload", "📚 MongoDB Resumes Browser"])
 

@@ -167,7 +167,7 @@ with nav_tab1:
             st.divider()
             st.subheader("📋 Parsed Sections")
 
-        tab_json, = st.tabs(["Raw JSON"])
+            tab_json, = st.tabs(["Raw JSON"])
 
             with tab_json:
                 json_str = json.dumps(data, indent=2)
